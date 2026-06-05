@@ -3,6 +3,8 @@ Application entry point.
 Run with:  uvicorn main:app --reload   (from the backend/ directory)
 """
 
+import logging
+import logging.handlers
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -22,6 +24,42 @@ from app.routers import (
     workflow_master_router,
 )
 from app.routers.auth_router import router as auth_router
+
+
+# ── Logging configuration ─────────────────────────────────────────────────────
+def _setup_logging() -> None:
+    """Configure logging to console and file."""
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+
+    # Console handler (INFO level and above)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter(
+        "%(asctime)s | %(name)s | %(levelname)-8s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    console_handler.setFormatter(console_formatter)
+    root_logger.addHandler(console_handler)
+
+    # File handler (DEBUG level and above) — rotates daily and deletes logs after 1 day
+    file_handler = logging.handlers.TimedRotatingFileHandler(
+        "app.log",
+        when="midnight",       # Rotate at midnight
+        interval=1,            # Every 1 day
+        backupCount=0,         # Don't keep backup files (deletes previous day's log)
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_formatter = logging.Formatter(
+        "%(asctime)s | %(name)s | %(levelname)-8s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    file_handler.setFormatter(file_formatter)
+    root_logger.addHandler(file_handler)
+
+
+_setup_logging()
+logger = logging.getLogger(__name__)
 
 
 def _ensure_admin_user() -> None:
@@ -47,12 +85,12 @@ def _ensure_admin_user() -> None:
                 active_status=True,
             ))
             db.commit()
-            print("[startup] Default admin user created  (admin / admin123)")
+            logger.info("Default admin user created  (admin / admin123)")
         else:
-            print("[startup] Admin user already exists — skipped")
+            logger.info("Admin user already exists — skipped")
     except Exception as exc:
         db.rollback()
-        print(f"[startup] Warning: could not ensure admin user — {exc}")
+        logger.warning(f"Could not ensure admin user — {exc}")
     finally:
         db.close()
 
