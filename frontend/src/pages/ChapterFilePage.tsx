@@ -25,6 +25,8 @@ import {
 import { FOLDER_CONFIG, COLUMN_DEFINITIONS, getProcessingActions, fileTypeIcon } from '@/config/fileManagerConfig'
 import type { FolderKey, ColumnKey } from '@/config/fileManagerConfig'
 import { BulkUploadModal } from '@/components/BulkUploadModal'
+import { ProcessingQueue } from '@/components/ProcessingQueue'
+import { useProcessingQueue } from '@/hooks/useProcessingQueue'
 import apiClient from '@/api/client'
 import { toast } from '@/store/useToastStore'
 
@@ -125,15 +127,17 @@ const col = createColumnHelper<FileRow>()
 // ── Actions dropdown ───────────────────────────────────────────────────────
 
 function FileActionsMenu({
-  row, onView, onDelete, stageName, isAssigned,
+  row, onView, onDelete, onProcess, stageName, isAssigned,
 }: {
   row:        FileRow
   onView:     (row: FileRow) => void
   onDelete:   (row: FileRow) => void
+  onProcess:  (action: string, row: FileRow) => void
   stageName:  string
   isAssigned: boolean
 }) {
-  const actions = getProcessingActions(stageName)
+  const ext     = row.file_name.split('.').pop()?.toLowerCase() ?? ''
+  const actions = getProcessingActions(stageName, row.subfolder, ext)
 
   const disabledCls = 'opacity-40 pointer-events-none cursor-not-allowed'
 
@@ -183,7 +187,7 @@ function FileActionsMenu({
               {actions.map(a => (
                 <DropdownMenu.Item key={a}
                   disabled={!isAssigned}
-                  onSelect={() => { if (!isAssigned) return; toast.success(`Queued: ${a} for ${row.file_name}`); console.info('[Process]', a, row) }}
+                  onSelect={() => { if (!isAssigned) return; onProcess(a, row) }}
                   className={`flex items-center gap-2 px-3 py-2 text-text outline-none ${isAssigned ? 'cursor-pointer hover:bg-accent hover:text-primary focus:bg-accent focus:text-primary' : disabledCls}`}
                 >
                   <Zap size={12} className="text-muted"/> {a}
@@ -206,6 +210,13 @@ export function ChapterFilePage({
   const navigate = useNavigate()
   const { projectId: routeProjectId } = useParams<{ projectId?: string }>()
   const pid = routeProjectId ? Number(routeProjectId) : projectId
+
+  const { handleProcess } = useProcessingQueue({
+    projectId:   pid,
+    chapterName: chapterFolderData?.chapter_name ?? '',
+    stageName,
+    onRefresh,
+  })
 
   const FOLDER_KEYS = Object.keys(FOLDER_CONFIG) as FolderKey[]
   const [searchParams, setSearchParams] = useSearchParams()
@@ -430,6 +441,7 @@ export function ChapterFilePage({
             row={i.row.original}
             onView={openEditor}
             onDelete={handleDelete}
+            onProcess={handleProcess}
             stageName={stageName}
             isAssigned={isAssigned}
           />
@@ -709,6 +721,9 @@ export function ChapterFilePage({
         existingFileNames={rows.map(r => r.file_name)}
         onComplete={() => { setShowBulkUpload(false); onRefresh?.() }}
       />
+
+      {/* ── Processing queue panel (floating bottom-right) ───────────────── */}
+      <ProcessingQueue />
     </div>
   )
 }

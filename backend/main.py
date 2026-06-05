@@ -23,6 +23,7 @@ from app.routers import (
     user_router,
     workflow_master_router,
 )
+from app.routers.processing_router import router as processing_router
 from app.routers.auth_router import router as auth_router
 
 
@@ -133,6 +134,7 @@ app.include_router(chapter_info_router.router)
 app.include_router(stage_detail_router.router)
 app.include_router(upload_router.router)
 app.include_router(workflow_master_router.router)
+app.include_router(processing_router)
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

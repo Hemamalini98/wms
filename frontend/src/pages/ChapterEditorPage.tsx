@@ -7,7 +7,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Save, Loader2, Download } from 'lucide-react'
+import { ArrowLeft, FileText, Save, Download } from 'lucide-react'
 import { DocxViewer } from '@/components/DocxViewer'
 import { projectsApi } from '@/api/projects'
 import { chaptersApi } from '@/api/chapters'
@@ -117,8 +117,8 @@ export function ChapterEditorPage() {
           />
         ) : (ext === 'docx' || ext === 'doc') ? (
           <DocxViewer src={fileUrl} editable={isEditable} className="h-full"/>
-        ) : (['jpg','jpeg','png','gif','webp','svg','bmp'].includes(ext)) ? (
-          <div className="h-full flex items-center justify-center bg-gray-50 overflow-auto p-8">
+        ) : (['jpg','jpeg','png','gif','webp','svg','bmp','tif','tiff','eps','psd','ai'].includes(ext)) ? (
+          <div className="h-full flex items-center justify-center bg-surface overflow-auto p-8">
             <img src={fileUrl} alt={decodedFilename}
               className="max-w-full max-h-full object-contain rounded-lg shadow-md"/>
           </div>

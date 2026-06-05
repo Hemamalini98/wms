@@ -75,21 +75,133 @@ export const FOLDER_CONFIG: Record<FolderKey, FolderConfig> = {
   backup:     { label:'Backup',     icon:'Archive',       allowUpload:false, allowDownload:true,  columns:['fileName','fileType','size','uploadedOn'] },
 }
 
-export const PROCESSING_ACTIONS: Record<string, string[]> = {
-  initiation:   ['Structure Tag','Metadata Check','File Integrity'],
-  design:   ['Structure Tag'],
-  editing:      ['Structure Tag','Reference Check','Accessibility Validation','AI QC'],
-  copyediting:  ['Technical Editor','Grammar Check','Style Consistency','Reference Validation'],
-  production:   ['Generate EPUB','Validate XML','Generate PDF','Package InDesign'],
-  qc:           ['QC Checklist','Validation Check','Missing Elements'],
-  proofreading: ['Markup Review','Correction Tracking'],
+/**
+ * Processing rule — defines which actions appear in the Process menu.
+ *
+ * All specified conditions must match (AND logic).
+ * Omitting a field means "match everything" for that dimension.
+ *
+ * To add a new rule: append an entry here — no other file needs changing.
+ */
+export interface ProcessingRule {
+  /** Stage name patterns (partial, case-insensitive). Omit = all stages. */
+  stages?:     string[]
+  /** Folder labels to match (e.g. 'Manuscript', 'Art'). Omit = all folders. */
+  folders?:    string[]
+  /** File extensions WITHOUT dot (e.g. 'docx', 'xml'). Omit = all extensions. */
+  extensions?: string[]
+  /** Actions shown when this rule matches. */
+  actions:     string[]
 }
 
-export function getProcessingActions(stageName: string): string[] {
-  const key = stageName.toLowerCase()
-  if (PROCESSING_ACTIONS[key]) return PROCESSING_ACTIONS[key]
-  const found = Object.entries(PROCESSING_ACTIONS).find(([k]) => key.includes(k) || k.includes(key))
-  return found ? found[1] : []
+export const PROCESSING_RULES: ProcessingRule[] = [
+  // ── Initiation ──────────────────────────────────────────────────────────────
+  {
+    stages:     ['initiation'],
+    folders:    ['Manuscript'],
+    extensions: ['docx', 'doc'],
+    actions:    ['Structure Tag', 'Metadata Check', 'File Integrity'],
+  },
+
+  // ── Design ──────────────────────────────────────────────────────────────────
+  {
+    stages:     ['design'],
+    folders:    ['Manuscript'],
+    extensions: ['docx', 'doc'],
+    actions:    ['Structure Tag', 'AI QC'],
+  },
+
+  // ── Editing ─────────────────────────────────────────────────────────────────
+  {
+    stages:     ['editing'],
+    folders:    ['Manuscript'],
+    extensions: ['docx', 'doc'],
+    actions:    ['Structure Tag', 'Reference Check', 'Accessibility Validation', 'AI QC'],
+  },
+
+  // ── Copyediting ─────────────────────────────────────────────────────────────
+  {
+    stages:     ['copyediting'],
+    folders:    ['Manuscript'],
+    extensions: ['docx', 'doc'],
+    actions:    ['Technical Editor', 'Grammar Check', 'Style Consistency', 'Reference Validation'],
+  },
+
+  // ── Production ──────────────────────────────────────────────────────────────
+  {
+    stages:     ['production'],
+    folders:    ['Manuscript'],
+    extensions: ['docx', 'doc'],
+    actions:    ['Generate EPUB', 'Generate PDF'],
+  },
+  {
+    stages:     ['production'],
+    folders:    ['XML'],
+    extensions: ['xml'],
+    actions:    ['Validate XML', 'Package InDesign'],
+  },
+
+  // ── QC ──────────────────────────────────────────────────────────────────────
+  {
+    stages:     ['qc'],
+    folders:    ['Manuscript'],
+    extensions: ['docx', 'doc', 'pdf'],
+    actions:    ['QC Checklist', 'Validation Check', 'Missing Elements'],
+  },
+
+  // ── Proofreading ────────────────────────────────────────────────────────────
+  {
+    stages:     ['proofreading'],
+    folders:    ['Proof'],
+    extensions: ['pdf', 'docx', 'doc'],
+    actions:    ['Markup Review', 'Correction Tracking'],
+  },
+]
+
+/**
+ * Return the deduplicated list of actions for the given stage + folder + extension.
+ *
+ * @param stageName  Current chapter stage (partial match, case-insensitive)
+ * @param folder     Active folder label, e.g. 'Manuscript'  (default: '' = match all)
+ * @param fileExt    File extension without dot, e.g. 'docx'  (default: '' = match all)
+ */
+export function getProcessingActions(
+  stageName: string,
+  folder:    string = '',
+  fileExt:   string = '',
+): string[] {
+  const stage = stageName.toLowerCase()
+  const fld   = folder.toLowerCase()
+  const ext   = fileExt.toLowerCase().replace(/^\./, '')
+
+  const matched: string[] = []
+
+  for (const rule of PROCESSING_RULES) {
+    // Stage check — partial match either way
+    if (rule.stages) {
+      const stageMatch = rule.stages.some(
+        s => stage.includes(s.toLowerCase()) || s.toLowerCase().includes(stage)
+      )
+      if (!stageMatch) continue
+    }
+
+    // Folder check — case-insensitive exact match
+    if (rule.folders && fld) {
+      const folderMatch = rule.folders.some(f => f.toLowerCase() === fld)
+      if (!folderMatch) continue
+    }
+
+    // Extension check — case-insensitive exact match
+    if (rule.extensions && ext) {
+      const extMatch = rule.extensions.some(e => e.toLowerCase() === ext)
+      if (!extMatch) continue
+    }
+
+    matched.push(...rule.actions)
+  }
+
+  // Deduplicate while preserving order
+  return [...new Set(matched)]
 }
 
 export interface FileTypeIcon { icon: string; color: string }
